@@ -62,8 +62,15 @@ let activeProduct = null; // producto en el modal
 
 // ── INIT ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // 🔧 Cargar pedidos guardados en este dispositivo (localStorage)
+  //    Así el admin ve todos los pedidos acumulados, aunque se haya recargado la página.
+  const saved = localStorage.getItem('lm_pedidos');
+  if (saved) {
+    try { pedidos = JSON.parse(saved); } catch(e) { pedidos = []; }
+  }
+
   renderCatalog();
-  checkAdminMode(); // 🔧 Verificar si se activó el modo administrador
+  checkAdminMode();
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
@@ -301,9 +308,7 @@ function sendWhatsApp() {
 }
 
 // ── ACUMULAR PEDIDO EN ARREGLO GLOBAL ──────────
-// 🔧 Aquí se agrega cada pedido confirmado al arreglo global `pedidos`.
-// 🔧 Esta función se llama para TODOS los usuarios (admin y clientes).
-//    El CSV acumulado lo descarga el admin. Los clientes no ven el botón.
+// 🔧 Se llama para TODOS los usuarios. Guarda en localStorage para persistir entre sesiones.
 function savePedido() {
   const { name, phone, address, notes, payment } = getCustomerData();
   const total = cart.reduce((s, c) => s + c.qty * c.product.price, 0);
@@ -325,40 +330,31 @@ function savePedido() {
     });
   });
 
-  // Actualizar contador en la barra de admin (si está visible)
+  // Guardar en localStorage para que el admin los vea al abrir ?admin=1
+  localStorage.setItem('lm_pedidos', JSON.stringify(pedidos));
   updateAdminBar();
 }
 
 // ── DESCARGA CSV DE TODOS LOS PEDIDOS (SOLO ADMIN) ──
-// 🔧 Esta función SOLO se llama desde el panel de administración.
-// 🔧 Para cambiar el nombre del archivo CSV, edita CSV_FILENAME.
 const CSV_FILENAME = 'pedidos_la_manjar.csv';
 
 function downloadAllCSV() {
   if (pedidos.length === 0) {
-    showToast('⚠️ No hay pedidos registrados aún en esta sesión.');
+    showToast('⚠️ No hay pedidos registrados aún.');
     return;
   }
 
-  // BOM para compatibilidad con Excel en Windows
   let csv = '\uFEFF';
-  // 🔧 Encabezado CSV — agrega columnas aquí si las necesitas
   csv += 'Fecha,Hora,Nombre,Teléfono,Dirección,Producto,Cantidad,Precio Unitario,Subtotal,Total,Observaciones,Forma de Pago\n';
 
   pedidos.forEach(p => {
     const row = [
-      p.fecha,
-      p.hora,
-      escapeCsv(p.name),
-      escapeCsv(p.phone),
-      escapeCsv(p.address),
+      p.fecha, p.hora,
+      escapeCsv(p.name), escapeCsv(p.phone), escapeCsv(p.address),
       escapeCsv(p.producto),
       p.cantidad,
-      p.precio.toFixed(2),
-      p.subtotal.toFixed(2),
-      p.total.toFixed(2),
-      escapeCsv(p.notes),
-      escapeCsv(p.payment)
+      p.precio.toFixed(2), p.subtotal.toFixed(2), p.total.toFixed(2),
+      escapeCsv(p.notes), escapeCsv(p.payment)
     ];
     csv += row.join(',') + '\n';
   });
@@ -367,13 +363,18 @@ function downloadAllCSV() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = CSV_FILENAME; // 🔧 Nombre del archivo CSV
+  a.download = CSV_FILENAME;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast(`📥 ${pedidos.length} pedido(s) descargados`);
-  // Para vaciar el historial: pedidos = [];
+
+  const n = pedidos.length;
+  // Limpiar historial tras descarga
+  pedidos = [];
+  localStorage.removeItem('lm_pedidos');
+  updateAdminBar();
+  showToast(`📥 ${n} pedido(s) descargados. Historial limpiado.`);
 }
 
 // ── MODO ADMINISTRADOR ─────────────────────────

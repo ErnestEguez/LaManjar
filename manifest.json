@@ -1,0 +1,22 @@
+{
+  "name": "La Manjar - Delicias Caseras",
+  "short_name": "La Manjar",
+  "description": "Catálogo de productos y pedidos de La Manjar",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FDF3E5",
+  "theme_color": "#F26A21",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "images/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "images/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

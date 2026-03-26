@@ -145,6 +145,33 @@
     </div>
   </div>
 
+  <!-- BARRA ADMIN (oculta por defecto; visible solo con ?admin=1 + PIN correcto) -->
+  <div id="admin-bar" class="admin-bar hidden">
+    <div class="admin-bar-inner">
+      <span class="admin-bar-title">🔐 Panel del Dueño</span>
+      <span id="admin-pedidos-count" class="admin-pedidos-count">0 pedidos</span>
+      <button class="btn-admin-csv" onclick="downloadAllCSV()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar CSV
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL DE PIN ADMIN (oculto por defecto) -->
+  <div id="pin-overlay" class="pin-overlay hidden">
+    <div class="pin-card">
+      <div class="pin-icon">🔐</div>
+      <h3 class="pin-title">Panel de Administración</h3>
+      <p class="pin-subtitle">Ingresa el PIN para continuar</p>
+      <input type="password" id="pin-input" class="pin-input"
+             placeholder="••••••••" maxlength="12"
+             inputmode="numeric" autocomplete="off"
+             onkeydown="if(event.key==='Enter') submitPin()" />
+      <div id="pin-error" class="pin-error hidden">❌ PIN incorrecto. Intenta nuevamente.</div>
+      <button class="btn-pin-submit" onclick="submitPin()">Ingresar</button>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>

@@ -302,6 +302,8 @@ function sendWhatsApp() {
 
 // ── ACUMULAR PEDIDO EN ARREGLO GLOBAL ──────────
 // 🔧 Aquí se agrega cada pedido confirmado al arreglo global `pedidos`.
+// 🔧 Esta función se llama para TODOS los usuarios (admin y clientes).
+//    El CSV acumulado lo descarga el admin. Los clientes no ven el botón.
 function savePedido() {
   const { name, phone, address, notes, payment } = getCustomerData();
   const total = cart.reduce((s, c) => s + c.qty * c.product.price, 0);
@@ -322,6 +324,9 @@ function savePedido() {
       payment
     });
   });
+
+  // Actualizar contador en la barra de admin (si está visible)
+  updateAdminBar();
 }
 
 // ── DESCARGA CSV DE TODOS LOS PEDIDOS (SOLO ADMIN) ──
@@ -374,30 +379,49 @@ function downloadAllCSV() {
 // ── MODO ADMINISTRADOR ─────────────────────────
 // 🔧 Se activa añadiendo ?admin=1 a la URL.
 // 🔧 El PIN se define en la constante ADMIN_PIN al inicio del archivo.
+// 🔧 La barra admin y el modal de PIN están definidos en index.html.
 function checkAdminMode() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('admin') !== '1') return; // Solo si ?admin=1
+  if (params.get('admin') !== '1') return; // Clientes normales: nada que hacer
 
-  // Pedir PIN al administrador
-  const pin = prompt('🔐 Panel de administración\nIngresa el PIN para continuar:');
-  if (pin !== ADMIN_PIN) {
-    if (pin !== null) showToast('❌ PIN incorrecto');
-    return;
+  // Mostrar el modal de PIN (sin usar prompt() que puede ser bloqueado)
+  const overlay = document.getElementById('pin-overlay');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    setTimeout(() => {
+      const inp = document.getElementById('pin-input');
+      if (inp) inp.focus();
+    }, 200);
   }
+}
 
-  // 🔧 Renderizar panel de administración (aparece al final de la página)
-  const panel = document.createElement('div');
-  panel.id = 'admin-panel';
-  panel.className = 'admin-panel';
-  panel.innerHTML = `
-    <div class="admin-inner">
-      <span class="admin-title">🔐 Panel del Dueño</span>
-      <button class="btn-admin-csv" onclick="downloadAllCSV()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Descargar CSV de pedidos
-      </button>
-    </div>`;
-  document.body.appendChild(panel);
+// Valida el PIN cuando el admin hace clic en "Ingresar" (o presiona Enter)
+function submitPin() {
+  const input = document.getElementById('pin-input');
+  const errorEl = document.getElementById('pin-error');
+  const pin = input ? input.value : '';
+
+  if (pin === ADMIN_PIN) {
+    // PIN correcto → ocultar modal, mostrar barra admin
+    document.getElementById('pin-overlay').classList.add('hidden');
+    document.getElementById('admin-bar').classList.remove('hidden');
+    updateAdminBar();
+    showToast('✅ Modo administrador activado');
+  } else {
+    // PIN incorrecto → mostrar error
+    if (errorEl) errorEl.classList.remove('hidden');
+    if (input) { input.value = ''; input.focus(); }
+  }
+}
+
+// Actualiza el contador de pedidos en la barra admin
+function updateAdminBar() {
+  const countEl = document.getElementById('admin-pedidos-count');
+  if (countEl) {
+    countEl.textContent = pedidos.length === 1
+      ? '1 pedido'
+      : `${pedidos.length} pedidos`;
+  }
 }
 
 function escapeCsv(val) {

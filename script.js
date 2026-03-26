@@ -1,15 +1,26 @@
 /* ===========================================
    LA MANJAR PWA - script.js
-   
+
    Para personalizar:
    - WHATSAPP_NUMBER: número de WhatsApp destino
    - PRODUCTS: arreglo de productos del catálogo
+   - ADMIN_PIN: PIN para acceder al panel de administración
    - Imágenes: coloca archivos en la carpeta /images
    =========================================== */
 
 // ── CONFIGURACIÓN ──────────────────────────────
 // 🔧 Cambia este número si cambia el contacto de WhatsApp
 const WHATSAPP_NUMBER = '593980313461';
+
+// 🔧 PIN del dueño/administrador para acceder al panel de descarga CSV
+// Actívalo abriendo la URL con ?admin=1  (ej: https://tuapp.vercel.app/?admin=1)
+const ADMIN_PIN = '24101970';
+
+// ── ARREGLO GLOBAL DE PEDIDOS ACUMULADOS ───────
+// 🔧 Aquí se guardan todos los pedidos confirmados en la sesión.
+// El CSV descargado incluirá TODOS los pedidos de esta lista.
+// Para reiniciar la lista manualmente: pedidos = [];
+let pedidos = [];
 
 // ── CATÁLOGO DE PRODUCTOS ──────────────────────
 // 🔧 Agrega, edita o elimina productos aquí.
@@ -32,14 +43,14 @@ const PRODUCTS = [
   {
     id: 3,
     name: 'Corviches × 2',
-    desc: 'Crujientes corviches rellenos de maní, hechos con amor en casa. Paquete de 2 unidades.',
+    desc: 'Corviches rellenos de maní y albacora, hechos con amor en casa. 80gr c/u. Paquete de 2 unidades.',
     price: 3.00,
     image: 'images/corviche-2und.jpg'
   },
   {
     id: 4,
     name: 'Corviches × 4',
-    desc: 'Crujientes corviches rellenos de maní, hechos con amor en casa. Paquete de 4 unidades.',
+    desc: 'Corviches rellenos de maní y albacora, hechos con amor en casa. 160gr c/u. Paquete de 4 unidades.',
     price: 3.00,
     image: 'images/corviche-4und.jpg'
   }
@@ -52,10 +63,18 @@ let activeProduct = null; // producto en el modal
 // ── INIT ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderCatalog();
+  checkAdminMode(); // 🔧 Verificar si se activó el modo administrador
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 });
+
+// Mostrar/ocultar datos de cuenta bancaria según forma de pago
+function toggleTransferInfo() {
+  const isTransfer = document.getElementById('pay-transferencia').checked;
+  const info = document.getElementById('transfer-info');
+  if (info) info.classList.toggle('hidden', !isTransfer);
+}
 
 // ── RENDER CATÁLOGO ────────────────────────────
 function renderCatalog() {
@@ -233,12 +252,15 @@ function getCustomerData() {
   const phone   = document.getElementById('customer-phone').value.trim();
   const address = document.getElementById('customer-address').value.trim();
   const notes   = document.getElementById('customer-notes').value.trim();
-  return { name, phone, address, notes };
+  // Obtener forma de pago seleccionada
+  const payEl   = document.querySelector('input[name="forma-pago"]:checked');
+  const payment = payEl ? payEl.value : 'Efectivo';
+  return { name, phone, address, notes, payment };
 }
 
 function validateForm() {
   const { name, phone } = getCustomerData();
-  if (!name) { showToast('Por favor ingresa tu nombre 👤'); return false; }
+  if (!name)  { showToast('Por favor ingresa tu nombre 👤'); return false; }
   if (!phone) { showToast('Por favor ingresa tu teléfono 📱'); return false; }
   if (cart.length === 0) { showToast('Tu carrito está vacío 🛒'); return false; }
   return true;
@@ -248,7 +270,7 @@ function validateForm() {
 // 🔧 El número de WhatsApp se configura en WHATSAPP_NUMBER al inicio del archivo
 function sendWhatsApp() {
   if (!validateForm()) return;
-  const { name, phone, address, notes } = getCustomerData();
+  const { name, phone, address, notes, payment } = getCustomerData();
   const total = cart.reduce((s, c) => s + c.qty * c.product.price, 0);
 
   let msg = `🍽️ *PEDIDO - La Manjar*\n`;
@@ -256,6 +278,7 @@ function sendWhatsApp() {
   msg += `👤 *Cliente:* ${name}\n`;
   msg += `📱 *Teléfono:* ${phone}\n`;
   if (address) msg += `📍 *Dirección:* ${address}\n`;
+  msg += `💳 *Forma de pago:* ${payment}\n`;
   msg += `━━━━━━━━━━━━━━━━\n`;
   msg += `🛒 *Productos:*\n`;
   cart.forEach(item => {
@@ -269,40 +292,68 @@ function sendWhatsApp() {
   msg += `━━━━━━━━━━━━━━━━\n`;
   msg += `_Pedido enviado desde la app La Manjar_ 🧡`;
 
+  // 🔧 Guardar pedido en el arreglo global antes de enviar
+  savePedido();
+
   const encoded = encodeURIComponent(msg);
   const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
   window.open(url, '_blank');
 }
 
-// ── DESCARGA CSV ───────────────────────────────
-function downloadCSV() {
-  if (!validateForm()) return;
-  const { name, phone, address, notes } = getCustomerData();
+// ── ACUMULAR PEDIDO EN ARREGLO GLOBAL ──────────
+// 🔧 Aquí se agrega cada pedido confirmado al arreglo global `pedidos`.
+function savePedido() {
+  const { name, phone, address, notes, payment } = getCustomerData();
   const total = cart.reduce((s, c) => s + c.qty * c.product.price, 0);
-
-  const now = new Date();
+  const now   = new Date();
   const fecha = now.toLocaleDateString('es-EC', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const hora  = now.toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' });
 
+  cart.forEach(item => {
+    pedidos.push({
+      fecha, hora,
+      name, phone, address,
+      producto: item.product.name,
+      cantidad: item.qty,
+      precio:   item.product.price,
+      subtotal: item.qty * item.product.price,
+      total,
+      notes,
+      payment
+    });
+  });
+}
+
+// ── DESCARGA CSV DE TODOS LOS PEDIDOS (SOLO ADMIN) ──
+// 🔧 Esta función SOLO se llama desde el panel de administración.
+// 🔧 Para cambiar el nombre del archivo CSV, edita CSV_FILENAME.
+const CSV_FILENAME = 'pedidos_la_manjar.csv';
+
+function downloadAllCSV() {
+  if (pedidos.length === 0) {
+    showToast('⚠️ No hay pedidos registrados aún en esta sesión.');
+    return;
+  }
+
   // BOM para compatibilidad con Excel en Windows
   let csv = '\uFEFF';
-  csv += 'Fecha,Hora,Nombre,Teléfono,Dirección,Producto,Cantidad,Precio Unitario,Subtotal,Total,Observaciones\n';
+  // 🔧 Encabezado CSV — agrega columnas aquí si las necesitas
+  csv += 'Fecha,Hora,Nombre,Teléfono,Dirección,Producto,Cantidad,Precio Unitario,Subtotal,Total,Observaciones,Forma de Pago\n';
 
-  cart.forEach((item, idx) => {
-    const subtotal = item.qty * item.product.price;
-    const totalCol = idx === 0 ? total.toFixed(2) : '';
+  pedidos.forEach(p => {
     const row = [
-      fecha,
-      hora,
-      escapeCsv(name),
-      escapeCsv(phone),
-      escapeCsv(address),
-      escapeCsv(item.product.name),
-      item.qty,
-      item.product.price.toFixed(2),
-      subtotal.toFixed(2),
-      totalCol,
-      escapeCsv(notes)
+      p.fecha,
+      p.hora,
+      escapeCsv(p.name),
+      escapeCsv(p.phone),
+      escapeCsv(p.address),
+      escapeCsv(p.producto),
+      p.cantidad,
+      p.precio.toFixed(2),
+      p.subtotal.toFixed(2),
+      p.total.toFixed(2),
+      escapeCsv(p.notes),
+      escapeCsv(p.payment)
     ];
     csv += row.join(',') + '\n';
   });
@@ -311,12 +362,42 @@ function downloadCSV() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `pedido_lamanjar_${formatDateForFilename(now)}.csv`;
+  a.download = CSV_FILENAME; // 🔧 Nombre del archivo CSV
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  showToast('📥 Archivo descargado');
+  showToast(`📥 ${pedidos.length} pedido(s) descargados`);
+  // Para vaciar el historial: pedidos = [];
+}
+
+// ── MODO ADMINISTRADOR ─────────────────────────
+// 🔧 Se activa añadiendo ?admin=1 a la URL.
+// 🔧 El PIN se define en la constante ADMIN_PIN al inicio del archivo.
+function checkAdminMode() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('admin') !== '1') return; // Solo si ?admin=1
+
+  // Pedir PIN al administrador
+  const pin = prompt('🔐 Panel de administración\nIngresa el PIN para continuar:');
+  if (pin !== ADMIN_PIN) {
+    if (pin !== null) showToast('❌ PIN incorrecto');
+    return;
+  }
+
+  // 🔧 Renderizar panel de administración (aparece al final de la página)
+  const panel = document.createElement('div');
+  panel.id = 'admin-panel';
+  panel.className = 'admin-panel';
+  panel.innerHTML = `
+    <div class="admin-inner">
+      <span class="admin-title">🔐 Panel del Dueño</span>
+      <button class="btn-admin-csv" onclick="downloadAllCSV()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar CSV de pedidos
+      </button>
+    </div>`;
+  document.body.appendChild(panel);
 }
 
 function escapeCsv(val) {

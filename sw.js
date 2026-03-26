@@ -1,4 +1,4 @@
-const CACHE_NAME = 'la-manjar-v1';
+const CACHE_NAME = 'la-manjar-v2';  // ← incrementar aquí para forzar recarga en todos los navegadores
 const ASSETS = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   './script.js',
   './manifest.json',
   './images/logo.png',
+  './images/billennium-logo.jpg',
   './images/tortilla-2und.png',
   './images/tortilla-4und.jpg',
   './images/corviche-2und.jpg',

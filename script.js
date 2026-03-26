@@ -378,43 +378,18 @@ function downloadAllCSV() {
 
 // ── MODO ADMINISTRADOR ─────────────────────────
 // 🔧 Se activa añadiendo ?admin=1 a la URL.
-// 🔧 El PIN se define en la constante ADMIN_PIN al inicio del archivo.
-// 🔧 La barra admin y el modal de PIN están definidos en index.html.
+//    Sin contraseña: cualquiera con ese link ve el botón de descarga CSV.
 function checkAdminMode() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('admin') !== '1') return; // Clientes normales: nada que hacer
 
-  // Mostrar el modal de PIN (sin usar prompt() que puede ser bloqueado)
-  const overlay = document.getElementById('pin-overlay');
-  if (overlay) {
-    overlay.classList.remove('hidden');
-    setTimeout(() => {
-      const inp = document.getElementById('pin-input');
-      if (inp) inp.focus();
-    }, 200);
-  }
+  // Solo con ?admin=1 → mostrar la barra de administración directamente
+  const bar = document.getElementById('admin-bar');
+  if (bar) bar.classList.remove('hidden');
+  updateAdminBar();
 }
 
-// Valida el PIN cuando el admin hace clic en "Ingresar" (o presiona Enter)
-function submitPin() {
-  const input = document.getElementById('pin-input');
-  const errorEl = document.getElementById('pin-error');
-  const pin = input ? input.value : '';
-
-  if (pin === ADMIN_PIN) {
-    // PIN correcto → ocultar modal, mostrar barra admin
-    document.getElementById('pin-overlay').classList.add('hidden');
-    document.getElementById('admin-bar').classList.remove('hidden');
-    updateAdminBar();
-    showToast('✅ Modo administrador activado');
-  } else {
-    // PIN incorrecto → mostrar error
-    if (errorEl) errorEl.classList.remove('hidden');
-    if (input) { input.value = ''; input.focus(); }
-  }
-}
-
-// Actualiza el contador de pedidos en la barra admin
+// Actualiza el contador de pedidos visibles en la barra admin
 function updateAdminBar() {
   const countEl = document.getElementById('admin-pedidos-count');
   if (countEl) {

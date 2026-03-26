@@ -157,20 +157,14 @@
     </div>
   </div>
 
-  <!-- MODAL DE PIN ADMIN (oculto por defecto) -->
-  <div id="pin-overlay" class="pin-overlay hidden">
-    <div class="pin-card">
-      <div class="pin-icon">🔐</div>
-      <h3 class="pin-title">Panel de Administración</h3>
-      <p class="pin-subtitle">Ingresa el PIN para continuar</p>
-      <input type="password" id="pin-input" class="pin-input"
-             placeholder="••••••••" maxlength="12"
-             inputmode="numeric" autocomplete="off"
-             onkeydown="if(event.key==='Enter') submitPin()" />
-      <div id="pin-error" class="pin-error hidden">❌ PIN incorrecto. Intenta nuevamente.</div>
-      <button class="btn-pin-submit" onclick="submitPin()">Ingresar</button>
-    </div>
-  </div>
+  <!-- FOOTER - DESARROLLADOR -->
+  <footer class="dev-footer">
+    <img src="images/billennium-logo.jpg" alt="Billennium System" class="dev-logo" />
+    <p class="dev-text">Aplicación desarrollada por <strong>BillenniumSystem</strong><br>
+      <a href="https://www.billenniumsystem.com" target="_blank" rel="noopener">www.billenniumsystem.com</a><br>
+      Todos los derechos reservados &copy; 2025
+    </p>
+  </footer>
 
   <script src="script.js"></script>
 </body>

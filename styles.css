@@ -917,3 +917,42 @@ body {
 }
 
 .btn-pin-submit:active { opacity: 0.88; }
+
+/* ── FOOTER DESARROLLADOR ── */
+.dev-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 18px 28px;
+  margin-top: 8px;
+  border-top: 1px solid #e8d5c4;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.dev-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+
+.dev-text {
+  font-size: 0.72rem;
+  color: #b09080;
+  line-height: 1.6;
+}
+
+.dev-text strong { color: var(--text-dark); }
+
+.dev-text a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.dev-text a:hover { text-decoration: underline; }
